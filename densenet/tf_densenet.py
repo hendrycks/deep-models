@@ -133,7 +133,7 @@ def avg_pool(input, s):
   return tf.nn.avg_pool(input, [1, s, s, 1], [1, s, s, 1], 'VALID')
 
 
-def run_model(data, label_count, depth=40, growth_rate=20, dropout=0, epochs=300,
+def run_model(data, label_count, depth=40, growth_rate=12, dropout=0, epochs=300,
               save_weights='', save_errors='', resume=False, f=tf.nn.relu):
   weight_decay = 1e-4
   layers = (depth - 4) // 3
