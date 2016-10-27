@@ -93,7 +93,7 @@ def weights_and_biases(kernel_shape, bias_shape,name=""):
   with tf.variable_scope("regularize"):
     # Create variable named "weights".
     weights = tf.get_variable("weights" + name, kernel_shape,
-            initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.5*kernel_shape[0]))
+            initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1/(kernel_shape[0]*0.5)))
             # initializer=tf.contrib.layers.xavier_initializer())
   # Create variable named "biases".
   biases = tf.get_variable("biases" + name, bias_shape,
