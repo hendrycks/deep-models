@@ -89,23 +89,22 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
   return [r / total_size for r in res]
 
 
-def weight_variable(shape):
-  initial = tf.truncated_normal(shape)/tf.sqrt(0.5*shape[0])
-  with tf.variable_scope("regularize"):
-    var = tf.Variable(initial)
-  return var
-
-
-def bias_variable(shape):
-  initial = tf.constant(0.0, shape=shape)
-  return tf.Variable(initial)
+def weights_and_biases(kernel_shape, bias_shape,name=""):
+  # Create variable named "weights".
+  weights = tf.get_variable("weights" + name, kernel_shape,
+          # initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01))
+          initializer=tf.contrib.layers.xavier_initializer())
+  # Create variable named "biases".
+  biases = tf.get_variable("biases" + name, bias_shape,
+          initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
+  return weights, biases
 
 
 def conv2d(input, in_features, out_features, kernel_size, with_bias=False):
-  W = weight_variable([kernel_size, kernel_size, in_features, out_features])
+  W, B =  weights_and_biases([kernel_size, kernel_size, in_features, out_features], [out_features])
   conv = tf.nn.conv2d(input, W, [1, 1, 1, 1], padding='SAME')
   # if with_bias:
-  #   return conv + bias_variable([out_features])
+  #   return conv + B
   return conv
 
 
@@ -121,9 +120,10 @@ def block(input, layers, in_features, growth, is_training, keep_prob, f=tf.nn.re
   current = input
   features = in_features
   for idx in range(layers):
-    tmp = batch_activ_conv(current, features, growth, 3, is_training, keep_prob, f)
-    current = tf.concat(3, (current, tmp))
-    features += growth
+    with tf.variable_scope("conv"+str(idx)):
+      tmp = batch_activ_conv(current, features, growth, 3, is_training, keep_prob, f)
+      current = tf.concat(3, (current, tmp))
+      features += growth
   return current, features
 
 
@@ -147,22 +147,28 @@ def run_model(data, label_count, depth=40, growth_rate=20, dropout=0, epochs=300
     # current = conv2d(current, 3, 16, 3)
     current = conv2d(xs, 3, 16, 3)
 
-    current, features = block(current, layers, 16, growth_rate, is_training, keep_prob, f)
-    current = batch_activ_conv(current, features, features, 1, is_training, keep_prob, f)
-    current = avg_pool(current, 2)
-    current, features = block(current, layers, features, growth_rate, is_training, keep_prob, f)
-    current = batch_activ_conv(current, features, features, 1, is_training, keep_prob, f)
-    current = avg_pool(current, 2)  # why not just l2 pool?
-    current, features = block(current, layers, features, growth_rate, is_training, keep_prob, f)
+    with tf.variable_scope("block1"):
+      current, features = block(current, layers, 16, growth_rate, is_training, keep_prob, f)
+      current = batch_activ_conv(current, features, features, 1, is_training, keep_prob, f)
+      current = avg_pool(current, 2)
+    with tf.variable_scope("block2"):
+      current, features = block(current, layers, features, growth_rate, is_training, keep_prob, f)
+      current = batch_activ_conv(current, features, features, 1, is_training, keep_prob, f)
+      current = avg_pool(current, 2)  # why not just l2 pool?
+    with tf.variable_scope("block3"):
+      current, features = block(current, layers, features, growth_rate, is_training, keep_prob, f)
 
-    current = batch_norm(current, is_training)
-    current = f(current)
-    current = avg_pool(current, 8)
-    final_dim = features
-    current = tf.reshape(current, [-1, final_dim])
-    Wfc = weight_variable([final_dim, label_count])
-    bfc = bias_variable([label_count])
-    logits = tf.matmul(current, Wfc) + bfc
+      current = batch_norm(current, is_training)
+    with tf.variable_scope("fc"):
+      current = f(current)
+      current = avg_pool(current, 8)
+      final_dim = features
+      current = tf.reshape(current, [-1, final_dim])
+      #Wfc = weight_variable([final_dim, label_count])
+      #bfc = bias_variable([label_count])
+      Wfc, bfc =  weights_and_biases([final_dim, label_count], [label_count])
+      logits = tf.matmul(current, Wfc) + bfc
+
 
   with tf.Session(graph=graph) as session:
     batch_size = 64
