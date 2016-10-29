@@ -90,11 +90,11 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
 
 
 def weights_and_biases(kernel_shape, bias_shape,name=""):
-  with tf.variable_scope("regularize"):
-    # Create variable named "weights".
-    weights = tf.get_variable("weights" + name, kernel_shape,
-            initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1/(kernel_shape[0]*0.5)))
-            # initializer=tf.contrib.layers.xavier_initializer())
+  # Create variable named "weights".
+  weights = tf.get_variable("weights" + name, kernel_shape,
+          initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1/(kernel_shape[0]*0.5)))
+          # initializer=tf.contrib.layers.xavier_initializer())
+  tf.add_to_collection("regularize", weights)
   # Create variable named "biases".
   biases = tf.get_variable("biases" + name, bias_shape,
           # initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
@@ -178,7 +178,7 @@ def run_model(data, label_count, depth=40, growth_rate=12, dropout=0, epochs=300
 
     # we place these loss components here so we can select the variables to regularize easily
     cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits, ys))
-    l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "regularize")])
+    l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.get_collection("regularize")])
     train_step = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(cross_entropy + l2 * weight_decay)
     correct_prediction = tf.equal(tf.argmax(logits, 1), ys)
     accuracy = tf.reduce_mean(tf.to_float(correct_prediction))
