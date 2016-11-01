@@ -92,7 +92,7 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
 def weights_and_biases(kernel_shape, bias_shape,name=""):
   # Create variable named "weights".
   weights = tf.get_variable("weights" + name, kernel_shape,
-          initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1/(kernel_shape[0]*0.5)))
+          initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1/np.sqrt(kernel_shape[0]*0.5)))
           # initializer=tf.contrib.layers.xavier_initializer())
   tf.add_to_collection("regularize", weights)
   # Create variable named "biases".
